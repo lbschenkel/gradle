@@ -167,6 +167,17 @@ dependencies {
     implementation localGroovy()
     testImplementation 'junit:junit:4.13'
 }
+// Needed when using ProjectBuilder
+tasks.withType(Test).configureEach {
+    jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+        @Override
+        Iterable<String> asArguments() {
+            return it.javaVersion.isCompatibleWith(JavaVersion.VERSION_16)
+                ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
+                : []
+        }
+    })
+}
 """
 
         expect:
@@ -208,6 +219,17 @@ dependencies {
     implementation gradleApi()
     implementation localGroovy()
     testImplementation 'junit:junit:4.13'
+}
+// Needed when using ProjectBuilder
+tasks.withType(Test).configureEach {
+    jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+        @Override
+        Iterable<String> asArguments() {
+            return it.javaVersion.isCompatibleWith(JavaVersion.VERSION_16)
+                ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
+                : []
+        }
+    })
 }
 """
 

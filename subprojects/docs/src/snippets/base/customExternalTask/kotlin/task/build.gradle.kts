@@ -34,3 +34,16 @@ publishing {
         }
     }
 }
+
+// Needed when using ProjectBuilder
+tasks.withType<Test>().configureEach {
+    jvmArgumentProviders.add(object : CommandLineArgumentProvider {
+        override fun asArguments() : Iterable<String> {
+            return if (javaVersion.isCompatibleWith(JavaVersion.VERSION_16)) {
+                listOf("--add-opens=java.base/java.lang=ALL-UNNAMED")
+            } else {
+                emptyList()
+            }
+        }
+    })
+}
