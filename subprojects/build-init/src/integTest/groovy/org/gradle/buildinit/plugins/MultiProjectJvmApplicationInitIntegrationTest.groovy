@@ -18,6 +18,9 @@ package org.gradle.buildinit.plugins
 
 import org.gradle.buildinit.plugins.internal.modifiers.BuildInitDsl
 import org.gradle.integtests.fixtures.DefaultTestExecutionResult
+import org.gradle.integtests.fixtures.executer.GradleContextualExecuter
+import org.gradle.util.TestPrecondition
+import spock.lang.Requires
 import spock.lang.Unroll
 
 import static org.gradle.buildinit.plugins.internal.modifiers.Language.GROOVY
@@ -131,6 +134,7 @@ class GroovyDslMultiProjectJvmApplicationInitIntegrationTest extends AbstractMul
     }
 }
 
+@Requires({ !(GradleContextualExecuter.embedded && TestPrecondition.JDK18_OR_LATER.fulfilled) })
 class KotlinDslMultiProjectJvmApplicationInitIntegrationTest extends AbstractMultiProjectJvmApplicationInitIntegrationTest {
     @Override
     BuildInitDsl getBuildDsl() {
