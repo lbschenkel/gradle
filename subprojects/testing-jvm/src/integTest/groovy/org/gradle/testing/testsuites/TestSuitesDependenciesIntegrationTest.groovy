@@ -23,7 +23,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
     private versionCatalog = file('gradle', 'libs.versions.toml')
 
     // region basic functionality
-    def 'suites do not share dependencies by default'() {
+    def 'test suites do not share dependencies by default'() {
         given:
         buildFile << """
         plugins {
@@ -64,7 +64,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         succeeds 'checkConfiguration'
     }
 
-    def "Test suites support annotationProcessor dependencies"() {
+    def "test suites support annotationProcessor dependencies"() {
         given: "a test suite that uses Google's Auto Value as an example of an annotation processor"
         settingsFile << """rootProject.name = 'Test'"""
         buildFile << """plugins {
@@ -158,7 +158,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         succeeds 'checkConfiguration'
     }
 
-    def 'non-default default test suites have project dependency if explicitly set'() {
+    def 'custom test suites have project dependency if explicitly set'() {
         given:
         buildFile << """
         plugins {
@@ -202,7 +202,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
     // endregion dependencies - projects
 
     // region dependencies - modules (GAV)
-    def 'user can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite'() {
+    def 'user can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite using a #desc'() {
         given:
         buildFile << """
         plugins {
@@ -220,18 +220,18 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
             suites {
                 test {
                     dependencies {
-                        implementation 'com.google.guava:guava:30.1.1-jre'
-                        compileOnly 'javax.servlet:servlet-api:3.0-alpha-1'
-                        runtimeOnly 'mysql:mysql-connector-java:8.0.26'
+                        implementation $implementationNotationTest
+                        compileOnly $compileOnlyNotationTest
+                        runtimeOnly $runtimeOnlyNotationTest
                     }
                 }
                 integTest(JvmTestSuite) {
                     // intentionally setting lower versions of the same dependencies on the `test` suite to show that no conflict resolution should be taking place
                     dependencies {
                         implementation project
-                        implementation 'com.google.guava:guava:29.0-jre'
-                        compileOnly  'javax.servlet:servlet-api:2.5'
-                        runtimeOnly 'mysql:mysql-connector-java:6.0.6'
+                        implementation $implementationNotationInteg
+                        compileOnly $compileOnlyNotationInteg
+                        runtimeOnly $runtimeOnlyNotationInteg
                     }
                 }
             }
@@ -266,9 +266,14 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
 
         expect:
         succeeds 'checkConfiguration'
+
+        where:
+        desc                | implementationNotationTest                  | compileOnlyNotationTest                           | runtimeOnlyNotationTest                     | implementationNotationInteg                  | compileOnlyNotationInteg                           | runtimeOnlyNotationInteg
+        'single GAV string' | gavStr(guavaGroup, guavaName, guavaVerTest) | gavStr(servletGroup, servletName, servletVerTest) | gavStr(mysqlGroup, mysqlName, mysqlVerTest) | gavStr(guavaGroup, guavaName, guavaVerInteg) | gavStr(servletGroup, servletName, servletVerInteg) | gavStr(mysqlGroup, mysqlName, mysqlVerInteg)
+        'GAV map'           | gavMap(guavaGroup, guavaName, guavaVerTest) | gavMap(servletGroup, servletName, servletVerTest) | gavMap(mysqlGroup, mysqlName, mysqlVerTest) | gavMap(guavaGroup, guavaName, guavaVerInteg) | gavMap(servletGroup, servletName, servletVerInteg) | gavMap(mysqlGroup, mysqlName, mysqlVerInteg)
     }
 
-    def 'user can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite via DependencyHandler'() {
+    def 'user can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite via DependencyHandler using a #desc'() {
         given:
         buildFile << """
         plugins {
@@ -287,15 +292,15 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
             // production code requires commons-lang3 at runtime, which will leak into tests' runtime classpaths
             implementation 'org.apache.commons:commons-lang3:3.11'
 
-            testImplementation 'com.google.guava:guava:30.1.1-jre'
-            testCompileOnly 'javax.servlet:servlet-api:3.0-alpha-1'
-            testRuntimeOnly 'mysql:mysql-connector-java:8.0.26'
+            testImplementation $implementationNotationTest
+            testCompileOnly $compileOnlyNotationTest
+            testRuntimeOnly $runtimeOnlyNotationTest
 
             // intentionally setting lower versions of the same dependencies on the `test` suite to show that no conflict resolution should be taking place
             integTestImplementation project
-            integTestImplementation 'com.google.guava:guava:29.0-jre'
-            integTestCompileOnly  'javax.servlet:servlet-api:2.5'
-            integTestRuntimeOnly 'mysql:mysql-connector-java:6.0.6'
+            integTestImplementation $implementationNotationInteg
+            integTestCompileOnly  $compileOnlyNotationInteg
+            integTestRuntimeOnly $runtimeOnlyNotationInteg
         }
 
         tasks.named('check') {
@@ -327,11 +332,40 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
 
         expect:
         succeeds 'checkConfiguration'
+
+        where:
+        desc                | implementationNotationTest                  | compileOnlyNotationTest                           | runtimeOnlyNotationTest                     | implementationNotationInteg                  | compileOnlyNotationInteg                           | runtimeOnlyNotationInteg
+        'single GAV string' | gavStr(guavaGroup, guavaName, guavaVerTest) | gavStr(servletGroup, servletName, servletVerTest) | gavStr(mysqlGroup, mysqlName, mysqlVerTest) | gavStr(guavaGroup, guavaName, guavaVerInteg) | gavStr(servletGroup, servletName, servletVerInteg) | gavStr(mysqlGroup, mysqlName, mysqlVerInteg)
+        'GAV map'           | gavMap(guavaGroup, guavaName, guavaVerTest) | gavMap(servletGroup, servletName, servletVerTest) | gavMap(mysqlGroup, mysqlName, mysqlVerTest) | gavMap(guavaGroup, guavaName, guavaVerInteg) | gavMap(servletGroup, servletName, servletVerInteg) | gavMap(mysqlGroup, mysqlName, mysqlVerInteg)
+
+    }
+
+    private static guavaGroup = 'com.google.guava'
+    private static guavaName = 'guava'
+    private static guavaVerTest = '30.1.1-jre'
+    private static guavaVerInteg = '29.0-jre'
+
+    private static servletGroup = 'javax.servlet'
+    private static servletName = 'servlet-api'
+    private static servletVerTest = '3.0-alpha-1'
+    private static servletVerInteg = '2.5'
+
+    private static mysqlGroup = 'mysql'
+    private static mysqlName = 'mysql-connector-java'
+    private static mysqlVerTest = '8.0.26'
+    private static mysqlVerInteg = '6.0.6'
+
+    private static gavStr(String group, String name, String version) {
+        return "'$group:$name:$version'"
+    }
+
+    private static gavMap(String group, String name, String version) {
+        return "group: '$group', name: '$name', version: '$version'"
     }
     // endregion dependencies - modules (GAV)
 
     // region dependencies - Version Catalog
-    def 'user can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite via a Version Catalog'() {
+    def 'user can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a test suite via a Version Catalog'() {
         given:
         buildFile << """
         plugins {
@@ -388,7 +422,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         succeeds 'checkConfiguration'
     }
 
-    def 'user can add dependencies using a Version Catalog bundle to a suite '() {
+    def 'user can add dependencies using a Version Catalog bundle to a test suite '() {
         given:
         buildFile << """
         plugins {
@@ -441,7 +475,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         succeeds 'checkConfiguration'
     }
 
-    def 'user can add dependencies using a Version Catalog with a hierarchy of aliases to a suite '() {
+    def 'user can add dependencies using a Version Catalog with a hierarchy of aliases to a test suite '() {
         given:
         buildFile << """
         plugins {
@@ -497,7 +531,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         succeeds 'checkConfiguration'
     }
 
-    def 'user can add dependencies using a Version Catalog defined programmatically to a suite '() {
+    def 'user can add dependencies using a Version Catalog defined programmatically to a test suite '() {
         given:
         buildFile << """
         plugins {
@@ -560,7 +594,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
     // endregion dependencies - Version Catalog
 
     // region dependencies - platforms
-    def "Test suites support platforms"() {
+    def "test suites support platforms"() {
         given: "a test suite that uses a platform dependency"
         settingsFile << """rootProject.name = 'Test'
 
