@@ -103,14 +103,11 @@ abstract class BaseGradleImplDepsIntegrationTest extends AbstractIntegrationSpec
             ${testablePluginProject(appliedLanguagePlugin)}
             // Needed when using ProjectBuilder
             tasks.withType(Test).configureEach {
-                jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-                    @Override
-                    Iterable<String> asArguments() {
-                        return it.javaVersion.isCompatibleWith(JavaVersion.VERSION_16)
-                            ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
-                            : []
-                    }
-                })
+                jvmArgumentProviders.add({
+                    javaVersion.isCompatibleWith(JavaVersion.VERSION_16)
+                        ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
+                        : []
+                } as CommandLineArgumentProvider)
             }
         """
     }
