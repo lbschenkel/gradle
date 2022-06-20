@@ -19,10 +19,10 @@ package org.gradle.testing.testsuites
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
 
 
-
 class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
     private versionCatalog = file('gradle', 'libs.versions.toml')
 
+    // region basic functionality
     def 'suites do not share dependencies by default'() {
         given:
         buildFile << """
@@ -64,6 +64,63 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         succeeds 'checkConfiguration'
     }
 
+    def "Test suites support annotationProcessor dependencies"() {
+        given: "a test suite that uses Google's Auto Value as an example of an annotation processor"
+        settingsFile << """rootProject.name = 'Test'"""
+        buildFile << """plugins {
+                id 'java'
+            }
+
+            ${mavenCentralRepository()}
+
+            testing {
+                suites {
+                    test {
+                        useJUnit()
+                        dependencies {
+                            implementation 'com.google.auto.value:auto-value-annotations:1.9'
+                            annotationProcessor 'com.google.auto.value:auto-value:1.9'
+                        }
+                    }
+                }
+            }
+            """.stripIndent()
+
+        file("src/test/java/Animal.java") << """
+            import com.google.auto.value.AutoValue;
+
+            @AutoValue
+            abstract class Animal {
+              static Animal create(String name, int numberOfLegs) {
+                return new AutoValue_Animal(name, numberOfLegs);
+              }
+
+              abstract String name();
+              abstract int numberOfLegs();
+            }
+            """.stripIndent()
+
+        file("src/test/java/AnimalTest.java") << """
+            import org.junit.Test;
+
+            import static org.junit.Assert.assertEquals;
+
+            public class AnimalTest {
+                @Test
+                public void testCreateAnimal() {
+                    Animal dog = Animal.create("dog", 4);
+                    assertEquals("dog", dog.name());
+                    assertEquals(4, dog.numberOfLegs());
+                }
+            }
+            """.stripIndent()
+
+        expect: "tests using a class created by running that annotation processor will succeed"
+        succeeds('test')
+    }
+    // endregion basic functionality
+
+    // region dependencies - projects
     def 'default test suite has project dependency by default; others do not'() {
         given:
         buildFile << """
@@ -142,7 +199,9 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         expect:
         succeeds 'checkConfiguration'
     }
+    // endregion dependencies - projects
 
+    // region dependencies - modules (GAV)
     def 'user can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite'() {
         given:
         buildFile << """
@@ -269,7 +328,9 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         expect:
         succeeds 'checkConfiguration'
     }
+    // endregion dependencies - modules (GAV)
 
+    // region dependencies - Version Catalog
     def 'user can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite via a Version Catalog'() {
         given:
         buildFile << """
@@ -496,62 +557,9 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         expect:
         succeeds 'checkConfiguration'
     }
+    // endregion dependencies - Version Catalog
 
-    def "Test suites support annotationProcessor dependencies"() {
-        given: "a test suite that uses Google's Auto Value as an example of an annotation processor"
-        settingsFile << """rootProject.name = 'Test'"""
-        buildFile << """plugins {
-                id 'java'
-            }
-
-            ${mavenCentralRepository()}
-
-            testing {
-                suites {
-                    test {
-                        useJUnit()
-                        dependencies {
-                            implementation 'com.google.auto.value:auto-value-annotations:1.9'
-                            annotationProcessor 'com.google.auto.value:auto-value:1.9'
-                        }
-                    }
-                }
-            }
-            """.stripIndent()
-
-        file("src/test/java/Animal.java") << """
-            import com.google.auto.value.AutoValue;
-
-            @AutoValue
-            abstract class Animal {
-              static Animal create(String name, int numberOfLegs) {
-                return new AutoValue_Animal(name, numberOfLegs);
-              }
-
-              abstract String name();
-              abstract int numberOfLegs();
-            }
-            """.stripIndent()
-
-        file("src/test/java/AnimalTest.java") << """
-            import org.junit.Test;
-
-            import static org.junit.Assert.assertEquals;
-
-            public class AnimalTest {
-                @Test
-                public void testCreateAnimal() {
-                    Animal dog = Animal.create("dog", 4);
-                    assertEquals("dog", dog.name());
-                    assertEquals(4, dog.numberOfLegs());
-                }
-            }
-            """.stripIndent()
-
-        expect: "tests using a class created by running that annotation processor will succeed"
-        succeeds('test')
-    }
-
+    // region dependencies - platforms
     def "Test suites support platforms"() {
         given: "a test suite that uses a platform dependency"
         settingsFile << """rootProject.name = 'Test'
@@ -604,4 +612,5 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         expect: "tests using a class from that platform will succeed"
         succeeds('test')
     }
+    // endregion dependencies - platforms
 }
