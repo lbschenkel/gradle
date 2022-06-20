@@ -27,7 +27,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         given:
         buildFile << """
         plugins {
-          id 'java'
+          id 'java-library'
         }
 
         ${mavenCentralRepository()}
@@ -68,7 +68,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         given: "a suite that uses Google's Auto Value as an example of an annotation processor"
         settingsFile << """rootProject.name = 'Test'"""
         buildFile << """plugins {
-                id 'java'
+                id 'java-library'
             }
 
             ${mavenCentralRepository()}
@@ -125,7 +125,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         given:
         buildFile << """
         plugins {
-          id 'java'
+          id 'java-library'
         }
 
         ${mavenCentralRepository()}
@@ -162,7 +162,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         given:
         buildFile << """
         plugins {
-          id 'java'
+          id 'java-library'
         }
 
         ${mavenCentralRepository()}
@@ -199,6 +199,79 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         expect:
         succeeds 'checkConfiguration'
     }
+
+    def 'can add dependencies to other projects to suites'() {
+        given:
+        multiProjectBuild('root', ['consumer', 'util']) {
+            buildFile << """
+                subprojects { apply plugin: 'java-library'}
+                project(':util') {
+                    dependencies { api 'org.apache.commons:commons-lang3:3.11' }
+                }
+            """
+        }
+
+        file('consumer/build.gradle') << """
+            ${mavenCentralRepository()}
+
+            testing {
+                suites {
+                    test {
+                        dependencies {
+                            implementation project(':util')
+                        }
+                    }
+                }
+            }
+
+            tasks.register('checkConfiguration') {
+                doLast {
+                    assert configurations.testCompileClasspath.files*.name.contains('commons-lang3-3.11.jar')
+                }
+            }
+        """
+
+        expect:
+        succeeds ':consumer:checkConfiguration'
+    }
+
+    def 'can add dependencies to other projects to suites with actions '() {
+        given:
+        multiProjectBuild('root', ['consumer', 'util']) {
+            buildFile << """
+                subprojects { apply plugin: 'java-library'}
+                project(':util') {
+                    dependencies { api 'org.apache.commons:commons-lang3:3.11' }
+                }
+            """
+        }
+
+        file('consumer/build.gradle') << """
+            ${mavenCentralRepository()}
+
+            testing {
+                suites {
+                    test {
+                        dependencies {
+                            implementation(project(':util')) {
+                                exclude group: 'org.apache.commons', module: 'commons-lang3'
+                            }
+                        }
+                    }
+                }
+            }
+
+            tasks.register('checkConfiguration') {
+                doLast {
+                    assert !configurations.testCompileClasspath.files*.name.contains('commons-lang3-3.11.jar')
+                }
+            }
+        """
+
+        expect:
+        succeeds ':consumer:checkConfiguration'
+    }
+
     // endregion dependencies - projects
 
     // region dependencies - modules (GAV)
@@ -206,7 +279,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         given:
         buildFile << """
         plugins {
-          id 'java'
+          id 'java-library'
         }
 
         ${mavenCentralRepository()}
@@ -277,7 +350,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         given:
         buildFile << """
         plugins {
-          id 'java'
+          id 'java-library'
         }
 
         ${mavenCentralRepository()}
@@ -343,7 +416,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         given:
         buildFile << """
         plugins {
-          id 'java'
+          id 'java-library'
         }
 
         ${mavenCentralRepository()}
@@ -421,6 +494,57 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         'GAV map'           | gavMap(beanUtilsGroup, beanUtilsName, beanUtilsVer)
     }
 
+    def "can add dependencies using a non-String CharSequence: #type"() {
+        given:
+        buildFile << """
+        import org.apache.commons.lang3.text.StrBuilder;
+
+        buildscript {
+            ${mavenCentralRepository()}
+
+            dependencies {
+                classpath("org.apache.commons:commons-lang3:3.11")
+            }
+        }
+
+        plugins {
+          id 'java-library'
+        }
+
+        ${mavenCentralRepository()}
+
+        $type buf = $creationNotation
+
+        testing {
+            suites {
+                test {
+                    dependencies {
+                        implementation(buf)
+                    }
+                }
+            }
+        }
+
+        tasks.register('checkConfiguration') {
+            dependsOn test
+            doLast {
+                def testCompileClasspathFileNames = configurations.testCompileClasspath.files*.name
+                assert testCompileClasspathFileNames.containsAll('commons-lang3-3.11.jar')
+            }
+        }
+        """
+
+        expect:
+        succeeds 'checkConfiguration'
+
+        where:
+        type            | creationNotation
+        'StringBuffer'  | "new StringBuffer('org.apache.commons:commons-lang3:3.11')"
+        'StringBuilder' | "new StringBuilder('org.apache.commons:commons-lang3:3.11')"
+        'StrBuilder'    | "new StrBuilder('org.apache.commons:commons-lang3:3.11')"
+        'GString'       | '"org.apache.commons:commons-lang3:3.${(11 + 11) / (2 + 1 - 1)}"'
+    }
+
     private static guavaGroup = 'com.google.guava'
     private static guavaName = 'guava'
     private static guavaVerTest = '30.1.1-jre'
@@ -453,12 +577,95 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
     }
     // endregion dependencies - modules (GAV)
 
+    // region dependencies - dependency objects
+    def 'can add dependency objects to the implementation, compileOnly and runtimeOnly configurations of a suite'() {
+        given :
+        buildFile << """
+            plugins {
+              id 'java-library'
+            }
+
+            ${mavenCentralRepository()}
+
+            def commonsLang = dependencies.create 'org.apache.commons:commons-lang3:3.11'
+            def servletApi = dependencies.create 'javax.servlet:servlet-api:3.0-alpha-1'
+            def mysql = dependencies.create 'mysql:mysql-connector-java:8.0.26'
+
+            testing {
+                suites {
+                    test {
+                        dependencies {
+                            implementation commonsLang
+                            compileOnly servletApi
+                            runtimeOnly mysql
+                        }
+                    }
+                }
+            }
+
+            tasks.register('checkConfiguration') {
+                dependsOn test
+                doLast {
+                    def testCompileClasspathFileNames = configurations.testCompileClasspath.files*.name
+                    def testRuntimeClasspathFileNames = configurations.testRuntimeClasspath.files*.name
+
+                    assert testCompileClasspathFileNames.containsAll('commons-lang3-3.11.jar', 'servlet-api-3.0-alpha-1.jar')
+                    assert !testCompileClasspathFileNames.contains('mysql-connector-java-8.0.26.jar'): 'runtimeOnly dependency'
+                    assert testRuntimeClasspathFileNames.containsAll('commons-lang3-3.11.jar', 'mysql-connector-java-8.0.26.jar')
+                    assert !testRuntimeClasspathFileNames.contains('servlet-api-3.0-alpha-1.jar'): 'compileOnly dependency'
+                }
+            }
+             """
+
+            expect:
+            succeeds 'checkConfiguration'
+        }
+
+    def 'can add dependency objects with actions to a suite'() {
+        given :
+        buildFile << """
+            plugins {
+              id 'java-library'
+            }
+
+            ${mavenCentralRepository()}
+
+            def beanUtils = 'commons-beanutils:commons-beanutils:1.9.4'
+
+            testing {
+                suites {
+                    test {
+                        dependencies {
+                            implementation(beanUtils) {
+                                exclude group: 'commons-collections', module: 'commons-collections'
+                            }
+                        }
+                    }
+                }
+            }
+
+            tasks.register('checkConfiguration') {
+                dependsOn test
+                doLast {
+                    def testCompileClasspathFileNames = configurations.testCompileClasspath.files*.name
+
+                    assert testCompileClasspathFileNames.contains('commons-beanutils-1.9.4.jar')
+                    assert !testCompileClasspathFileNames.contains('commons-collections-3.2.2.jar'): 'excluded dependency'
+                }
+            }
+             """
+
+        expect:
+        succeeds 'checkConfiguration'
+    }
+    // endregion dependencies - dependency objects
+
     // region dependencies - Version Catalog
     def 'can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite via a Version Catalog'() {
         given:
         buildFile << """
         plugins {
-          id 'java'
+          id 'java-library'
         }
 
         ${mavenCentralRepository()}
@@ -515,7 +722,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         given:
         buildFile << """
         plugins {
-          id 'java'
+          id 'java-library'
         }
 
         ${mavenCentralRepository()}
@@ -568,7 +775,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         given:
         buildFile << """
         plugins {
-          id 'java'
+          id 'java-library'
         }
 
         ${mavenCentralRepository()}
@@ -624,7 +831,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         given:
         buildFile << """
         plugins {
-          id 'java'
+          id 'java-library'
         }
 
         ${mavenCentralRepository()}
