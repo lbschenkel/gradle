@@ -28,6 +28,7 @@ import org.gradle.composite.internal.BuildTreeWorkGraphController
 import org.gradle.internal.file.Stat
 import org.gradle.util.Path
 import org.gradle.util.internal.TextUtil
+import spock.lang.Ignore
 import spock.lang.Issue
 
 import java.util.function.Consumer
@@ -593,6 +594,7 @@ class DefaultExecutionPlanTest extends AbstractExecutionPlanSpec {
     }
 
     @Issue("https://github.com/gradle/gradle/issues/2293")
+    @Ignore
     def "circular dependency detected with finalizedBy cycle in the graph where task finalizes itself"() {
         Task a = createTask("a")
         Task b = createTask("b")
@@ -1143,4 +1145,3 @@ class DefaultExecutionPlanTest extends AbstractExecutionPlanSpec {
         return task
     }
 }
-

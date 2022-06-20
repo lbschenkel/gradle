@@ -128,7 +128,7 @@ public class FinalizerGroup extends HasFinalizers {
         // Otherwise, wait for all finalized nodes to complete
         boolean isAnyExecuted = false;
         for (Node finalized : getFinalizedNodes()) {
-            if (!finalized.isComplete()) {
+            if (!finalized.isComplete() && finalized != node) {
                 return Node.DependenciesState.NOT_COMPLETE;
             }
             isAnyExecuted |= finalized.isExecuted();
