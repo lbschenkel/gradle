@@ -23,7 +23,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
     private versionCatalog = file('gradle', 'libs.versions.toml')
 
     // region basic functionality
-    def 'test suites do not share dependencies by default'() {
+    def 'suites do not share dependencies by default'() {
         given:
         buildFile << """
         plugins {
@@ -64,8 +64,8 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         succeeds 'checkConfiguration'
     }
 
-    def "test suites support annotationProcessor dependencies"() {
-        given: "a test suite that uses Google's Auto Value as an example of an annotation processor"
+    def "suites support annotationProcessor dependencies"() {
+        given: "a suite that uses Google's Auto Value as an example of an annotation processor"
         settingsFile << """rootProject.name = 'Test'"""
         buildFile << """plugins {
                 id 'java'
@@ -121,7 +121,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
     // endregion basic functionality
 
     // region dependencies - projects
-    def 'default test suite has project dependency by default; others do not'() {
+    def 'default suite has project dependency by default; others do not'() {
         given:
         buildFile << """
         plugins {
@@ -158,7 +158,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         succeeds 'checkConfiguration'
     }
 
-    def 'custom test suites have project dependency if explicitly set'() {
+    def 'custom suites have project dependency if explicitly set'() {
         given:
         buildFile << """
         plugins {
@@ -202,7 +202,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
     // endregion dependencies - projects
 
     // region dependencies - modules (GAV)
-    def 'user can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite using a #desc'() {
+    def 'can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite using a #desc'() {
         given:
         buildFile << """
         plugins {
@@ -269,11 +269,11 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
 
         where:
         desc                | implementationNotationTest                  | compileOnlyNotationTest                           | runtimeOnlyNotationTest                     | implementationNotationInteg                  | compileOnlyNotationInteg                           | runtimeOnlyNotationInteg
-        'single GAV string' | gavStr(guavaGroup, guavaName, guavaVerTest) | gavStr(servletGroup, servletName, servletVerTest) | gavStr(mysqlGroup, mysqlName, mysqlVerTest) | gavStr(guavaGroup, guavaName, guavaVerInteg) | gavStr(servletGroup, servletName, servletVerInteg) | gavStr(mysqlGroup, mysqlName, mysqlVerInteg)
+        'GAV string'        | gavStr(guavaGroup, guavaName, guavaVerTest) | gavStr(servletGroup, servletName, servletVerTest) | gavStr(mysqlGroup, mysqlName, mysqlVerTest) | gavStr(guavaGroup, guavaName, guavaVerInteg) | gavStr(servletGroup, servletName, servletVerInteg) | gavStr(mysqlGroup, mysqlName, mysqlVerInteg)
         'GAV map'           | gavMap(guavaGroup, guavaName, guavaVerTest) | gavMap(servletGroup, servletName, servletVerTest) | gavMap(mysqlGroup, mysqlName, mysqlVerTest) | gavMap(guavaGroup, guavaName, guavaVerInteg) | gavMap(servletGroup, servletName, servletVerInteg) | gavMap(mysqlGroup, mysqlName, mysqlVerInteg)
     }
 
-    def 'user can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite via DependencyHandler using a #desc'() {
+    def 'can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite via DependencyHandler using a #desc'() {
         given:
         buildFile << """
         plugins {
@@ -335,9 +335,90 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
 
         where:
         desc                | implementationNotationTest                  | compileOnlyNotationTest                           | runtimeOnlyNotationTest                     | implementationNotationInteg                  | compileOnlyNotationInteg                           | runtimeOnlyNotationInteg
-        'single GAV string' | gavStr(guavaGroup, guavaName, guavaVerTest) | gavStr(servletGroup, servletName, servletVerTest) | gavStr(mysqlGroup, mysqlName, mysqlVerTest) | gavStr(guavaGroup, guavaName, guavaVerInteg) | gavStr(servletGroup, servletName, servletVerInteg) | gavStr(mysqlGroup, mysqlName, mysqlVerInteg)
+        'GAV string'        | gavStr(guavaGroup, guavaName, guavaVerTest) | gavStr(servletGroup, servletName, servletVerTest) | gavStr(mysqlGroup, mysqlName, mysqlVerTest) | gavStr(guavaGroup, guavaName, guavaVerInteg) | gavStr(servletGroup, servletName, servletVerInteg) | gavStr(mysqlGroup, mysqlName, mysqlVerInteg)
         'GAV map'           | gavMap(guavaGroup, guavaName, guavaVerTest) | gavMap(servletGroup, servletName, servletVerTest) | gavMap(mysqlGroup, mysqlName, mysqlVerTest) | gavMap(guavaGroup, guavaName, guavaVerInteg) | gavMap(servletGroup, servletName, servletVerInteg) | gavMap(mysqlGroup, mysqlName, mysqlVerInteg)
+    }
 
+    def "can use custom action on suite using a #desc"() {
+        given:
+        buildFile << """
+        plugins {
+          id 'java'
+        }
+
+        ${mavenCentralRepository()}
+
+        testing {
+            suites {
+                test {
+                    dependencies {
+                        implementation($dependencyNotation) {
+                            exclude group: '$collectionsGroup', module: '$collectionsName'
+                        }
+                    }
+                }
+            }
+        }
+
+        tasks.register('checkConfiguration') {
+            dependsOn test
+            doLast {
+                def testCompileClasspathFileNames = configurations.testCompileClasspath.files*.name
+                assert testCompileClasspathFileNames.containsAll('${beanUtilsName}-${beanUtilsVer}.jar')
+                assert !testCompileClasspathFileNames.contains('${collectionsName}-${collectionsVer}.jar'): 'excluded dependency'
+            }
+        }
+        """
+
+        file('src/main/org/sample/Person.java') << """
+            package org.sample;
+
+            public class Person {
+                private String name;
+                private int age;
+
+                public String getName() {
+                    return name;
+                }
+
+                public void setName(String name) {
+                    this.name = name;
+                }
+
+                public int getAge() {
+                    return age;
+                }
+
+                public void setAge(int age) {
+                    this.age = age;
+                }
+            }
+        """
+
+        file('src/test/org/samplePersonTest.java') << """
+            package org.sample;
+
+            import org.apache.commons.beanutils.PropertyUtils;
+
+            public class PersonTest {
+                @Test
+                public void testPerson() {
+                    Object person = new Person();
+                    PropertyUtils.setSimpleProperty(person, "name", "Bart Simpson");
+                    PropertyUtils.setSimpleProperty(person, "age", 38);
+                    assertEquals("Bart Simpson", person.getName());
+                    assertEquals(38, person.getAge());
+                }
+            }
+        """
+
+        expect:
+        succeeds 'checkConfiguration'
+
+        where:
+        desc                | dependencyNotation
+        'GAV string'        | gavStr(beanUtilsGroup, beanUtilsName, beanUtilsVer)
+        'GAV map'           | gavMap(beanUtilsGroup, beanUtilsName, beanUtilsVer)
     }
 
     private static guavaGroup = 'com.google.guava'
@@ -355,6 +436,14 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
     private static mysqlVerTest = '8.0.26'
     private static mysqlVerInteg = '6.0.6'
 
+    private static beanUtilsGroup = 'commons-beanutils'
+    private static beanUtilsName = 'commons-beanutils'
+    private static beanUtilsVer = '1.9.4'
+
+    private static collectionsGroup = 'commons-collections'
+    private static collectionsName = 'commons-collections'
+    private static collectionsVer = '3.2.2'
+
     private static gavStr(String group, String name, String version) {
         return "'$group:$name:$version'"
     }
@@ -365,7 +454,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
     // endregion dependencies - modules (GAV)
 
     // region dependencies - Version Catalog
-    def 'user can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a test suite via a Version Catalog'() {
+    def 'can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite via a Version Catalog'() {
         given:
         buildFile << """
         plugins {
@@ -422,7 +511,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         succeeds 'checkConfiguration'
     }
 
-    def 'user can add dependencies using a Version Catalog bundle to a test suite '() {
+    def 'can add dependencies using a Version Catalog bundle to a suite '() {
         given:
         buildFile << """
         plugins {
@@ -475,7 +564,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         succeeds 'checkConfiguration'
     }
 
-    def 'user can add dependencies using a Version Catalog with a hierarchy of aliases to a test suite '() {
+    def 'can add dependencies using a Version Catalog with a hierarchy of aliases to a suite '() {
         given:
         buildFile << """
         plugins {
@@ -531,7 +620,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         succeeds 'checkConfiguration'
     }
 
-    def 'user can add dependencies using a Version Catalog defined programmatically to a test suite '() {
+    def 'can add dependencies using a Version Catalog defined programmatically to a suite '() {
         given:
         buildFile << """
         plugins {
@@ -594,8 +683,8 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
     // endregion dependencies - Version Catalog
 
     // region dependencies - platforms
-    def "test suites support platforms"() {
-        given: "a test suite that uses a platform dependency"
+    def "suites support platforms"() {
+        given: "a suite that uses a platform dependency"
         settingsFile << """rootProject.name = 'Test'
 
             include 'platform', 'consumer'""".stripIndent()
