@@ -412,7 +412,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         'GAV map'           | gavMap(guavaGroup, guavaName, guavaVerTest) | gavMap(servletGroup, servletName, servletVerTest) | gavMap(mysqlGroup, mysqlName, mysqlVerTest) | gavMap(guavaGroup, guavaName, guavaVerInteg) | gavMap(servletGroup, servletName, servletVerInteg) | gavMap(mysqlGroup, mysqlName, mysqlVerInteg)
     }
 
-    def "can use custom action on suite using a #desc"() {
+    def "can add dependency with actions on suite using a #desc"() {
         given:
         buildFile << """
         plugins {
@@ -876,6 +876,50 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         guava = { module = "com.google.guava:guava", version.ref = "guava" }
         commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
         mysql-connector = { module = "mysql:mysql-connector-java", version.ref = "mysql-connector" }
+        """.stripIndent(8)
+
+        expect:
+        succeeds 'checkConfiguration'
+    }
+
+    def 'can add dependencies via a Version Catalog with actions'() {
+        given:
+        buildFile << """
+        plugins {
+          id 'java-library'
+        }
+
+        ${mavenCentralRepository()}
+
+        testing {
+            suites {
+                test {
+                    dependencies {
+                        implementation(libs.commons.beanutils) {
+                            exclude group: 'commons-collections', module: 'commons-collections'
+                        }
+                    }
+                }
+            }
+        }
+
+        tasks.register('checkConfiguration') {
+            dependsOn test
+            doLast {
+                def testCompileClasspathFileNames = configurations.testCompileClasspath.files*.name
+
+                assert testCompileClasspathFileNames.contains('commons-beanutils-1.9.4.jar')
+                assert !testCompileClasspathFileNames.contains('commons-collections-3.2.2.jar'): 'excluded dependency'
+            }
+        }
+        """
+
+        versionCatalog = file('gradle', 'libs.versions.toml') << """
+        [versions]
+        commons-beanutils = "1.9.4"
+
+        [libraries]
+        commons-beanutils = { module = "commons-beanutils:commons-beanutils", version.ref = "commons-beanutils" }
         """.stripIndent(8)
 
         expect:
