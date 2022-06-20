@@ -630,7 +630,7 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
 
             ${mavenCentralRepository()}
 
-            def beanUtils = 'commons-beanutils:commons-beanutils:1.9.4'
+            def beanUtils = dependencies.create 'commons-beanutils:commons-beanutils:1.9.4'
 
             testing {
                 suites {
@@ -659,6 +659,170 @@ class TestSuitesDependenciesIntegrationTest extends AbstractIntegrationSpec {
         succeeds 'checkConfiguration'
     }
     // endregion dependencies - dependency objects
+
+    // region dependencies - dependency providers
+    def 'can add dependency providers which provide dependency objects to the implementation, compileOnly and runtimeOnly configurations of a suite'() {
+        given :
+        buildFile << """
+            plugins {
+              id 'java-library'
+            }
+
+            ${mavenCentralRepository()}
+
+            def commonsLang = project.provider(() -> dependencies.create 'org.apache.commons:commons-lang3:3.11')
+            def servletApi = project.provider(() -> dependencies.create 'javax.servlet:servlet-api:3.0-alpha-1')
+            def mysql = project.provider(() -> dependencies.create 'mysql:mysql-connector-java:8.0.26')
+
+            testing {
+                suites {
+                    test {
+                        dependencies {
+                            implementation commonsLang
+                            compileOnly servletApi
+                            runtimeOnly mysql
+                        }
+                    }
+                }
+            }
+
+            tasks.register('checkConfiguration') {
+                dependsOn test
+                doLast {
+                    def testCompileClasspathFileNames = configurations.testCompileClasspath.files*.name
+                    def testRuntimeClasspathFileNames = configurations.testRuntimeClasspath.files*.name
+
+                    assert testCompileClasspathFileNames.containsAll('commons-lang3-3.11.jar', 'servlet-api-3.0-alpha-1.jar')
+                    assert !testCompileClasspathFileNames.contains('mysql-connector-java-8.0.26.jar'): 'runtimeOnly dependency'
+                    assert testRuntimeClasspathFileNames.containsAll('commons-lang3-3.11.jar', 'mysql-connector-java-8.0.26.jar')
+                    assert !testRuntimeClasspathFileNames.contains('servlet-api-3.0-alpha-1.jar'): 'compileOnly dependency'
+                }
+            }
+             """
+
+        expect:
+        succeeds 'checkConfiguration'
+    }
+
+    def 'can add dependency providers which provide GAVs to the implementation, compileOnly and runtimeOnly configurations of a suite'() {
+        given :
+        buildFile << """
+            plugins {
+              id 'java-library'
+            }
+
+            ${mavenCentralRepository()}
+
+            def commonsLang = project.provider(() -> 'org.apache.commons:commons-lang3:3.11')
+            def servletApi = project.provider(() -> 'javax.servlet:servlet-api:3.0-alpha-1')
+            def mysql = project.provider(() -> 'mysql:mysql-connector-java:8.0.26')
+
+            testing {
+                suites {
+                    test {
+                        dependencies {
+                            implementation commonsLang
+                            compileOnly servletApi
+                            runtimeOnly mysql
+                        }
+                    }
+                }
+            }
+
+            tasks.register('checkConfiguration') {
+                dependsOn test
+                doLast {
+                    def testCompileClasspathFileNames = configurations.testCompileClasspath.files*.name
+                    def testRuntimeClasspathFileNames = configurations.testRuntimeClasspath.files*.name
+
+                    assert testCompileClasspathFileNames.containsAll('commons-lang3-3.11.jar', 'servlet-api-3.0-alpha-1.jar')
+                    assert !testCompileClasspathFileNames.contains('mysql-connector-java-8.0.26.jar'): 'runtimeOnly dependency'
+                    assert testRuntimeClasspathFileNames.containsAll('commons-lang3-3.11.jar', 'mysql-connector-java-8.0.26.jar')
+                    assert !testRuntimeClasspathFileNames.contains('servlet-api-3.0-alpha-1.jar'): 'compileOnly dependency'
+                }
+            }
+             """
+
+        expect:
+        succeeds 'checkConfiguration'
+    }
+
+    def 'can add dependency providers which provide dependency objects with actions to a suite'() {
+        given :
+        buildFile << """
+            plugins {
+              id 'java-library'
+            }
+
+            ${mavenCentralRepository()}
+
+            def beanUtils = project.provider(() -> dependencies.create 'commons-beanutils:commons-beanutils:1.9.4')
+
+            testing {
+                suites {
+                    test {
+                        dependencies {
+                            implementation(beanUtils) {
+                                exclude group: 'commons-collections', module: 'commons-collections'
+                            }
+                        }
+                    }
+                }
+            }
+
+            tasks.register('checkConfiguration') {
+                dependsOn test
+                doLast {
+                    def testCompileClasspathFileNames = configurations.testCompileClasspath.files*.name
+
+                    assert testCompileClasspathFileNames.contains('commons-beanutils-1.9.4.jar')
+                    assert !testCompileClasspathFileNames.contains('commons-collections-3.2.2.jar'): 'excluded dependency'
+                }
+            }
+             """
+
+        expect:
+        succeeds 'checkConfiguration'
+    }
+
+    def 'can add dependency providers which provide GAVs with actions to a suite'() {
+        given :
+        buildFile << """
+            plugins {
+              id 'java-library'
+            }
+
+            ${mavenCentralRepository()}
+
+            def beanUtils = project.provider(() -> 'commons-beanutils:commons-beanutils:1.9.4')
+
+            testing {
+                suites {
+                    test {
+                        dependencies {
+                            implementation(beanUtils) {
+                                exclude group: 'commons-collections', module: 'commons-collections'
+                            }
+                        }
+                    }
+                }
+            }
+
+            tasks.register('checkConfiguration') {
+                dependsOn test
+                doLast {
+                    def testCompileClasspathFileNames = configurations.testCompileClasspath.files*.name
+
+                    assert testCompileClasspathFileNames.contains('commons-beanutils-1.9.4.jar')
+                    assert !testCompileClasspathFileNames.contains('commons-collections-3.2.2.jar'): 'excluded dependency'
+                }
+            }
+             """
+
+        expect:
+        succeeds 'checkConfiguration'
+    }
+    // endregion dependencies - dependency providers
 
     // region dependencies - Version Catalog
     def 'can add dependencies to the implementation, compileOnly and runtimeOnly configurations of a suite via a Version Catalog'() {
