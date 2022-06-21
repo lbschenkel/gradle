@@ -168,15 +168,20 @@ dependencies {
     testImplementation 'junit:junit:4.13'
 }
 // Needed when using ProjectBuilder
+class AddOpensArgProvider implements CommandLineArgumentProvider {
+    private final Test test;
+    public AddOpensArgProvider(Test test) {
+        this.test = test;
+    }
+    @Override
+    Iterable<String> asArguments() {
+        return test.javaVersion.isCompatibleWith(JavaVersion.VERSION_9)
+            ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
+            : []
+    }
+}
 tasks.withType(Test).configureEach {
-    jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-        @Override
-        Iterable<String> asArguments() {
-            return it.javaVersion.isCompatibleWith(JavaVersion.VERSION_16)
-                ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
-                : []
-        }
-    })
+    jvmArgumentProviders.add(new AddOpensArgProvider(it))
 }
 """
 
@@ -221,15 +226,20 @@ dependencies {
     testImplementation 'junit:junit:4.13'
 }
 // Needed when using ProjectBuilder
+class AddOpensArgProvider implements CommandLineArgumentProvider {
+    private final Test test;
+    public AddOpensArgProvider(Test test) {
+        this.test = test;
+    }
+    @Override
+    Iterable<String> asArguments() {
+        return test.javaVersion.isCompatibleWith(JavaVersion.VERSION_9)
+            ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
+            : []
+    }
+}
 tasks.withType(Test).configureEach {
-    jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-        @Override
-        Iterable<String> asArguments() {
-            return it.javaVersion.isCompatibleWith(JavaVersion.VERSION_16)
-                ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
-                : []
-        }
-    })
+    jvmArgumentProviders.add(new AddOpensArgProvider(it))
 }
 """
 

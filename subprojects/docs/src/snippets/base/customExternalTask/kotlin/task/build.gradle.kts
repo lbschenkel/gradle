@@ -47,3 +47,16 @@ tasks.withType<Test>().configureEach {
         }
     })
 }
+// Needed when using ProjectBuilder
+class AddOpensArgProvider : CommandLineArgumentProvider(val test: Test) {
+    override fun asArguments() : Iterable<String> {
+        return if (test.javaVersion.isCompatibleWith(JavaVersion.VERSION_9)) {
+            listOf("--add-opens=java.base/java.lang=ALL-UNNAMED")
+        } else {
+            emptyList()
+        }
+    }
+}
+tasks.withType<Test>().configureEach {
+    jvmArgumentProviders.add(AddOpensArgProvider(it))
+}
