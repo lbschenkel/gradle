@@ -46,11 +46,14 @@ class ProjectBuilderEndUserIntegrationTest extends AbstractIntegrationSpec {
 
         // Needed when using ProjectBuilder
         tasks.withType(Test).configureEach {
-            jvmArgumentProviders.add({
-                javaVersion.isCompatibleWith(JavaVersion.VERSION_16)
-                    ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
-                    : []
-            } as CommandLineArgumentProvider)
+            jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+                @Override
+                Iterable<String> asArguments() {
+                    return it.javaVersion.isCompatibleWith(JavaVersion.VERSION_16)
+                        ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
+                        : []
+                }
+            })
         }
         """
     }
