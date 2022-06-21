@@ -36,21 +36,9 @@ publishing {
 }
 
 // Needed when using ProjectBuilder
-tasks.withType<Test>().configureEach {
-    jvmArgumentProviders.add(object : CommandLineArgumentProvider {
-        override fun asArguments() : Iterable<String> {
-            return if (javaVersion.isCompatibleWith(JavaVersion.VERSION_16)) {
-                listOf("--add-opens=java.base/java.lang=ALL-UNNAMED")
-            } else {
-                emptyList()
-            }
-        }
-    })
-}
-// Needed when using ProjectBuilder
 class AddOpensArgProvider(val test: Test) : CommandLineArgumentProvider {
     override fun asArguments() : Iterable<String> {
-        return if (test.javaVersion.isCompatibleWith(JavaVersion.VERSION_9)) {
+        return if (test.javaVersion.isCompatibleWith(JavaVersion.VERSION_1_9)) {
             listOf("--add-opens=java.base/java.lang=ALL-UNNAMED")
         } else {
             emptyList()
@@ -58,5 +46,5 @@ class AddOpensArgProvider(val test: Test) : CommandLineArgumentProvider {
     }
 }
 tasks.withType<Test>().configureEach {
-    jvmArgumentProviders.add(AddOpensArgProvider(it))
+    jvmArgumentProviders.add(AddOpensArgProvider(this))
 }

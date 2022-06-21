@@ -109,7 +109,7 @@ abstract class BaseGradleImplDepsIntegrationTest extends AbstractIntegrationSpec
                 }
                 @Override
                 Iterable<String> asArguments() {
-                    return test.javaVersion.isCompatibleWith(JavaVersion.VERSION_9)
+                    return test.javaVersion.isCompatibleWith(JavaVersion.VERSION_2_9)
                         ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
                         : []
                 }

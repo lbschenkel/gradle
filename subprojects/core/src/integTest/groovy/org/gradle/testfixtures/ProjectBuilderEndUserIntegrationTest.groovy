@@ -52,7 +52,7 @@ class ProjectBuilderEndUserIntegrationTest extends AbstractIntegrationSpec {
             }
             @Override
             Iterable<String> asArguments() {
-                return test.javaVersion.isCompatibleWith(JavaVersion.VERSION_9)
+                return test.javaVersion.isCompatibleWith(JavaVersion.VERSION_1_9)
                     ? ["--add-opens=java.base/java.lang=ALL-UNNAMED"]
                     : []
             }
