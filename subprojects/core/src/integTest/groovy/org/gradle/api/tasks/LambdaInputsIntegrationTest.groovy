@@ -23,7 +23,6 @@ import org.gradle.internal.reflect.problems.ValidationProblemId
 import org.gradle.internal.reflect.validation.ValidationMessageChecker
 import org.gradle.internal.reflect.validation.ValidationTestFor
 import org.gradle.test.fixtures.file.TestFile
-import org.gradle.util.internal.ToBeImplemented
 import spock.lang.Issue
 
 class LambdaInputsIntegrationTest extends AbstractIntegrationSpec implements ValidationMessageChecker, DirectoryBuildCacheFixture, ExecutionOptimizationDeprecationFixture {
@@ -245,28 +244,16 @@ class LambdaInputsIntegrationTest extends AbstractIntegrationSpec implements Val
         """
 
         when:
-        expectImplementationUnknownDeprecation {
-            additionalTaskAction(':myTask')
-            implementedByLambda('LambdaActionOriginal')
-        }
         run "myTask"
         then:
         executedAndNotSkipped(":myTask")
 
         when:
-        expectImplementationUnknownDeprecation {
-            additionalTaskAction(':myTask')
-            implementedByLambda('LambdaActionOriginal')
-        }
         run "myTask"
         then:
-        executedAndNotSkipped(":myTask")
+        skipped(":myTask")
 
         when:
-        expectImplementationUnknownDeprecation {
-            additionalTaskAction(':myTask')
-            implementedByLambda('LambdaActionChanged')
-        }
         run "myTask", "-Pchanged"
         then:
         executedAndNotSkipped(":myTask")
@@ -297,10 +284,6 @@ class LambdaInputsIntegrationTest extends AbstractIntegrationSpec implements Val
         """
 
         when:
-        expectImplementationUnknownDeprecation {
-            additionalTaskAction(':myTask')
-            implementedByLambda('LambdaAction')
-        }
         withBuildCache().run "myTask"
         then:
         executedAndNotSkipped(":myTask")
@@ -316,13 +299,9 @@ class LambdaInputsIntegrationTest extends AbstractIntegrationSpec implements Val
         skipped(":myTask")
 
         when:
-        expectImplementationUnknownDeprecation {
-            additionalTaskAction(':myTask')
-            implementedByLambda('LambdaAction')
-        }
         withBuildCache().run "myTask"
         then:
-        executedAndNotSkipped(":myTask")
+        skipped(":myTask")
 
         when:
         withBuildCache().run "myTask", "-Panonymous"
@@ -330,7 +309,6 @@ class LambdaInputsIntegrationTest extends AbstractIntegrationSpec implements Val
         skipped(":myTask")
     }
 
-    @ToBeImplemented
     def "serializable lambda can be used as task action"() {
         file("buildSrc/src/main/java/LambdaAction.java") << javaClass("LambdaAction", serializableLambdaPrintingString("ACTION", "From Lambda"))
         setupCustomTask()
@@ -345,19 +323,14 @@ class LambdaInputsIntegrationTest extends AbstractIntegrationSpec implements Val
         """
 
         when:
-        // There shouldn't be a deprecation message
-        expectImplementationUnknownDeprecation {
-            additionalTaskAction(':myTask')
-            implementedByLambda('LambdaAction')
-        }
         run "myTask"
         then:
         executedAndNotSkipped(":myTask")
-//
-//        when:
-//        run "myTask"
-//        then:
-//        skipped(":myTask")
+
+        when:
+        run "myTask"
+        then:
+        skipped(":myTask")
     }
 
     private TestFile setupCustomTask() {
