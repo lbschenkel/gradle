@@ -41,7 +41,7 @@ publishing {
 }
 
 // Needed when using ProjectBuilder
-class AddOpensArgProvider : CommandLineArgumentProvider(val test: Test) {
+class AddOpensArgProvider(val test: Test) : CommandLineArgumentProvider {
     override fun asArguments() : Iterable<String> {
         return if (test.javaVersion.isCompatibleWith(JavaVersion.VERSION_9)) {
             listOf("--add-opens=java.base/java.lang=ALL-UNNAMED")
